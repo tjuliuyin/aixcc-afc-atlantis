@@ -1,0 +1,35 @@
+# Self-contained runner image. Bundles JDK + Jazzer + project so
+# `reproduce.py --backend docker` works on any host without local Java.
+#
+# Build (from project root):
+#   docker build -t claude-java-vuln-hunter-runner:latest -f docker/Dockerfile.runner .
+#
+# Reproduce one blob:
+#   docker run --rm -v "$PWD/workspace/pov/sqli:/in:ro" \
+#     claude-java-vuln-hunter-runner:latest \
+#     java -cp /app/jazzer/jazzer_standalone.jar:/app/workspace/build/classes:/app/workspace/build/deps/* \
+#       com.code_intelligence.jazzer.Jazzer \
+#       --target_class=com.example.fuzz.DemoFuzzer /in/blob.bin
+FROM eclipse-temurin:21-jdk
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 python3-pip curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# install codeindex backend
+RUN python3 -m pip install --no-cache-dir --break-system-packages javalang
+
+WORKDIR /app
+
+# bundle everything (sources, harness, jazzer, tools)
+COPY jazzer/ /app/jazzer/
+COPY tools/ /app/tools/
+COPY workspace/ /app/workspace/
+
+# Pre-build so the image is hunt-ready out of the box.
+RUN bash workspace/harness/build.sh
+
+ENV VULN_HUNTER_ROOT=/app
+ENV REPRODUCE_BACKEND=native
+CMD ["bash", "-lc", "java -cp /app/jazzer/jazzer_standalone.jar:/app/workspace/build/classes:/app/workspace/build/deps/* com.code_intelligence.jazzer.Jazzer --help"]

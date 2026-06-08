@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python tools/*.py *)",
+      "Bash(python3 tools/*.py *)",
+      "Bash(bash workspace/harness/build.sh)",
+      "Bash(bash setup.sh)",
+      "Bash(bash run_demo.sh)",
+      "Bash(wsl *)",
+      "Bash(java -cp *)",
+      "Bash(javac *)",
+      "Read(workspace/**)",
+      "Read(tools/**)",
+      "Read(jazzer/**)",
+      "Read(.claude/skills/**)",
+      "Write(workspace/**)",
+      "Edit(workspace/**)",
+      "Glob(workspace/**)",
+      "Grep(workspace/**)"
+    ],
+    "deny": [
+      "Write(.claude/**)",
+      "Write(tools/**)",
+      "Edit(tools/**)"
+    ]
+  },
+  "env": {
+    "REPRODUCE_BACKEND": "native"
+  }
+}
