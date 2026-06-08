@@ -1,0 +1,32 @@
+# Build artifacts
+workspace/build/
+
+# Runtime data
+workspace/index/*.json
+workspace/findings/*.json
+workspace/pov/**/blob.bin
+workspace/pov/**/*.log
+workspace/pov/**/*.parsed.json
+workspace/pov/**/parsed.json
+workspace/pov/**/failure.md
+workspace/pov/**/gen.py
+workspace/state.json
+workspace/report.md
+
+# Downloaded artifacts (re-fetched by setup.sh)
+jazzer/jazzer
+jazzer/jazzer_standalone.jar
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Jazzer auto-generated reproducer files (when running from project root)
+Crash_*.java
+crash-*

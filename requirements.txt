@@ -1,0 +1,4 @@
+# Python dependencies for tools/ . All optional — the demo runs with regex
+# fallbacks if these aren't installed (setup.sh tries to install them).
+javalang>=0.13.0         # preferred Java code-index backend
+pydantic>=2.5            # optional; useful if you extend the tools
