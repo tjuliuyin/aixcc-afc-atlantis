@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python tools/*.py *)",
+      "Bash(python3 tools/*.py *)",
+      "Bash(bash workspace/harness/build.sh)",
+      "Bash(wsl *)",
+      "Read(workspace/**)",
+      "Read(tools/**)",
+      "Write(workspace/**)",
+      "Edit(workspace/**)",
+      "Glob(workspace/**)",
+      "Grep(workspace/**)"
+    ],
+    "deny": [
+      "Write(.claude/**)",
+      "Write(tools/**)",
+      "Edit(tools/**)"
+    ]
+  },
+  "env": {
+    "REPRODUCE_BACKEND": "native"
+  }
+}

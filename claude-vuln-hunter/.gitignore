@@ -1,0 +1,23 @@
+# Build artifacts
+workspace/harness/harness
+workspace/harness/*.o
+
+# Runtime data
+workspace/index/*.json
+workspace/findings/*.json
+workspace/pov/**/blob.bin
+workspace/pov/**/*.log
+workspace/pov/**/*.parsed.json
+workspace/pov/**/parsed.json
+workspace/pov/*.bin
+workspace/pov/*.log
+workspace/state.json
+workspace/report.md
+
+# keep seed corpus and the directory structure
+!workspace/corpus/seed1.bin
+
+# Python
+__pycache__/
+*.pyc
+.venv/

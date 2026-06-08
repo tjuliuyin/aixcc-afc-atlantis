@@ -1,0 +1,9 @@
+# Core (optional but recommended for accurate indexing)
+tree-sitter-languages>=1.10 ; python_version < "3.12"
+# pydantic is handy if you extend the tools; not required by the demo
+pydantic>=2.5
+
+# Notes:
+# - tree-sitter-languages may not have wheels for Python 3.12+. If it fails to
+#   install, the code indexer automatically falls back to a regex scanner and
+#   the demo still works.
