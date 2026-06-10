@@ -29,6 +29,13 @@ DEPS_DIR = BUILD_DIR / "deps"
 
 
 def build_classpath() -> str:
+    # Prefer the classpath assembled by build_target.py (handles Maven/Gradle
+    # dependency trees that the simple glob below would miss).
+    cp_file = BUILD_DIR / "cp.txt"
+    if cp_file.exists():
+        cp = cp_file.read_text().strip()
+        if cp:
+            return cp
     parts = [str(JAZZER_JAR), str(CLASSES_DIR)]
     if DEPS_DIR.exists():
         for jar in sorted(DEPS_DIR.glob("*.jar")):

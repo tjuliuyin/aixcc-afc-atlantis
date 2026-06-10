@@ -58,12 +58,25 @@ for name in RC CMDI SQLI; do
     fi
 done
 
-say "5. final state"
+say "5. record verified PoVs + generate report"
+for name in RC CMDI SQLI; do
+    [ -f "workspace/pov/$name/parsed.json" ] || continue
+    san=$(python3 -c "import json;print(json.load(open('workspace/pov/$name/parsed.json'))['sanitizer'])")
+    python3 tools/state.py append verified_povs \
+        "{\"source\":\"smoke\",\"sanitizer\":\"$san\",\"blob\":\"workspace/pov/$name/blob.bin\",\"harness\":\"com.example.fuzz.DemoFuzzer\"}" >/dev/null
+done
+python3 tools/report.py --harness com.example.fuzz.DemoFuzzer
+
+say "6. final state"
 python3 tools/state.py dump
 
 echo ""
 if [ "$PASS" -eq "$TOTAL" ]; then
-    grn "DONE — $PASS/$TOTAL deterministic PoVs verified. Next:  claude  then  /hunt"
+    grn "DONE — $PASS/$TOTAL deterministic PoVs verified. Report: workspace/report.md"
+    echo "Next steps:"
+    echo "    claude  then  /campaign   # LLM hunt + real fuzzing campaign"
+    echo "    claude  then  /hunt       # LLM-guided targeted PoVs only"
+    echo "    python3 tools/fuzz.py --harness com.example.fuzz.DemoFuzzer --seconds 120 --jobs 4"
 else
     red "FAILED — $PASS/$TOTAL PoVs passed. Investigate workspace/pov/*/blob.log"
     exit 1
