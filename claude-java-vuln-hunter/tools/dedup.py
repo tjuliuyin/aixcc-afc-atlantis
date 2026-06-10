@@ -19,11 +19,13 @@ from state import load as load_state, save as save_state  # noqa: E402
 
 
 # Sanitizer families considered equivalent for grouping purposes
-# (mirrors Atlantis SIMILAR_SANITIZER table).
+# (mirrors Atlantis SIMILAR_SANITIZER). Kept CONSERVATIVE: only merge labels
+# that are genuinely the same root cause surfacing under different names.
+# Distinct vuln classes (rce vs os-command-injection, path-traversal vs ssrf)
+# are intentionally NOT merged — the callstack signature already separates
+# unrelated bugs, and merging labels would mislabel real findings.
 SIMILAR_GROUPS = [
-    {"path-traversal", "ssrf"},                # both involve uncontrolled IO targets
-    {"os-command-injection", "rce"},
-    {"oom", "stack-overflow"},
+    {"oom", "stack-overflow"},   # both are resource-exhaustion / DoS surface
 ]
 
 

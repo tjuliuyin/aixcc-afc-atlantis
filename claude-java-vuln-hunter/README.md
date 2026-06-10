@@ -20,15 +20,32 @@ bash setup.sh
 # 2. token-free deterministic smoke test — verifies your env can find PoVs
 bash run_demo.sh
 #    => 3/3 PoVs verified: rce, os-command-injection, sql-injection
+#       + workspace/report.md generated
 
 # 3. interactive Claude Code agent — does the real hunt
 claude
-> /hunt
+> /campaign          # LLM PoV hunt + real coverage-guided fuzzing, then report
 ```
 
-On a successful hunt, Claude writes `workspace/report.md` with one section per
-verified PoV: `vuln_type`, `class.method file:line`, call chain, log excerpt,
-blob path, and the key conditions that gate the bug.
+On a successful run, the report tool writes `workspace/report.md` with one
+section per verified PoV: `vuln_type`, `class.method file:line`, call chain,
+log excerpt, blob path, and the key conditions that gate the bug.
+
+## Commands
+
+| Command | What it does |
+|---------|--------------|
+| `/campaign [class] [secs]` | **Full run** — build + index + (auto-harness) + LLM PoV hunt **and** a coverage-guided Jazzer campaign in parallel, then triage + report. |
+| `/hunt [class]`            | LLM-guided **targeted** PoVs only (no fuzzing campaign). |
+| `/fuzz [class] [secs] [jobs]` | Coverage-guided Jazzer **campaign** + auto-triage only. |
+| `/genharness [target]`    | Auto-write a Jazzer harness for a target class/method. |
+| `/verify <blob> [class]`  | Reproduce + parse + dedup a single blob. |
+| `/index`, `/status`       | Refresh the code index; show current hunt state. |
+
+The two discovery halves — LLM-guided targeted PoVs and the blind coverage
+campaign — **share the same dedup groups** (`workspace/state.json`), so a bug
+found by one is never double-counted by the other. This mirrors Atlantis'
+ensemble of directed analysis + brute fuzzing.
 
 ## What works out of the box
 
@@ -46,15 +63,19 @@ three confirmed with real Jazzer sanitizer findings:
 ## What the agent actually does
 
 ```
-/hunt
+/campaign
+ ├─ build_target.py         (Maven/Gradle/jar/javac → classes + cp.txt)
  ├─ codeindex.py            (functions.json — replaces Joern/CodeQL)
- ├─ harness-understander    (CPUA: entry + targets + tainted args + routing)
- ├─ sink-finder  × N (∥)    (BCDA SINK_DETECT: per-method sink + sanitizer)
- ├─ path-analyzer × M       (BCDA CLASSIFY: BIT + key_conditions)
- ├─ pov-generator × M       (BGA: writes gen.py using tools/fdp_builder.py)
- │    └─ crash-verifier      (reproduce.py → parse_crash.py → dedup.py)
- │         └─ feedback loop (≤ iteration_budget) on no-crash
- └─ report.md
+ ├─ harness-generator       (auto-write a Jazzer harness if none exists)
+ ├──────────────────────────── two halves run together ────────────────────────
+ │  A) LLM-guided (directed):                B) coverage-guided (brute):
+ │   harness-understander  (CPUA)             fuzz.py  → Jazzer campaign
+ │   sink-finder  × N (∥)  (BCDA sink)          ↓ per crash
+ │   path-analyzer × M     (BCDA classify)     reproduce → parse_crash → dedup
+ │   pov-generator × M     (BGA + fdp_builder)
+ │     └─ crash-verifier   (reproduce → parse_crash → dedup)
+ │          └─ feedback loop (≤ iteration_budget) on no-crash
+ └─ report.py               (shared dedup groups → workspace/report.md)
 ```
 
 ## Atlantis → Claude Code mapping
@@ -117,28 +138,57 @@ claude
 
 ## Bring your own Java target
 
-1. Drop your source under `workspace/target/<project>/`.
-2. Write a Jazzer harness in `workspace/harness/src/main/java/...`:
+### Option A — a real Maven / Gradle project (recommended)
+
+```bash
+# 1. put the whole project under workspace/target/
+cp -r ~/my-java-project workspace/target/
+
+# 2. let the agent build it, generate a harness, and hunt
+claude
+> /genharness com.acme.parser.RequestParser.parse   # auto-writes a harness
+> /campaign com.example.fuzz.RequestParserFuzzer 300 # 5-min hunt + fuzz
+```
+
+`tools/build_target.py` auto-detects `pom.xml` / `build.gradle`, runs
+`mvn package` / `gradle build`, copies the dependency jars into
+`workspace/build/deps/`, and writes the full classpath to
+`workspace/build/cp.txt` (which `reproduce.py` and `fuzz.py` use). No manual
+classpath wrangling.
+
+### Option B — provide your own harness
+
+1. Drop your source/jars under `workspace/target/<project>/`.
+2. Write a Jazzer harness in
+   `workspace/harness/src/main/java/com/example/fuzz/MyFuzzer.java`:
    ```java
    import com.code_intelligence.jazzer.api.FuzzedDataProvider;
    public class MyFuzzer {
        public static void fuzzerTestOneInput(FuzzedDataProvider data) {
-           // call your target API with FDP-derived inputs
+           // call your target API with FDP-derived inputs;
+           // catch ONLY business exceptions, never Throwable.
        }
    }
    ```
-3. Add any 3rd-party jars to `workspace/build/deps/` or extend
-   `workspace/harness/build.sh` to fetch them.
-4. Put initial seeds in `workspace/corpus/`.
-5. `claude` → `/hunt <fully-qualified harness class>`.
+3. Prebuilt 3rd-party jars: drop them anywhere under `workspace/target/`
+   (build_target.py collects every `*.jar`) — or add fetch logic to it.
+4. Put initial seeds in `workspace/corpus/` (optional; speeds up the campaign).
+5. `claude` → `/campaign com.example.fuzz.MyFuzzer`.
 
-The agent will:
-- index your sources (`tools/codeindex.py`)
-- understand your harness (CPUA-style)
-- find sinks Jazzer can detect (see `.claude/skills/java-sinks/SKILL.md`)
-- build PoVs with `tools/fdp_builder.py`
-- verify each PoV against the real Jazzer + your build
-- write `workspace/report.md`
+In both cases the agent will: build the target → index your sources
+(`tools/codeindex.py`) → (auto-generate or understand the harness) → find
+Jazzer-detectable sinks (`.claude/skills/java-sinks/SKILL.md`) → craft PoVs
+with `tools/fdp_builder.py` → run a coverage-guided campaign
+(`tools/fuzz.py`) → verify everything against the real Jazzer + your build →
+write `workspace/report.md`.
+
+### Letting the agent write the harness for you
+
+If you don't want to hand-write a harness, just run `/genharness` with a target
+class or method (or no argument — it will pick the public methods most likely
+to reach a dangerous sink). The `harness-generator` subagent writes a
+compilable `fuzzerTestOneInput`, builds it, smoke-tests that it runs, and
+records it in `workspace/findings/harness.json` for the rest of the pipeline.
 
 ## Repository layout
 
@@ -148,19 +198,22 @@ setup.sh                  one-shot installer (Jazzer + javalang + first build)
 run_demo.sh               token-free deterministic smoke test
 .claude/
   settings.json           tool/permission allowlist
-  agents/*.md             5 subagents (the pipeline stages)
-  commands/*.md           /index /hunt /verify /status
+  agents/*.md             6 subagents (harness-generator + the 5 pipeline stages)
+  commands/*.md           /campaign /hunt /fuzz /genharness /verify /index /status
   skills/
     sanitizer-lore/       Jazzer sanitizer dictionary + exploit hints
     java-sinks/           catalogue of dangerous Java APIs by sanitizer family
     jazzer-fdp/           how to assemble FuzzedDataProvider blobs
 tools/
+  build_target.py         Maven/Gradle/jar/javac auto-build -> classes + cp.txt
   codeindex.py            Java method index (javalang -> tree-sitter -> regex)
-  reproduce.py            run a blob through Jazzer (native/wsl/docker)
+  reproduce.py            run one blob through Jazzer (native/wsl/docker)
+  fuzz.py                 coverage-guided Jazzer campaign + auto-triage
   parse_crash.py          Jazzer log -> structured callstack + sanitizer name
   dedup.py                new-vs-duplicate crash grouping
-  state.py                file-backed state (replaces Redis)
   fdp_builder.py          deterministic FuzzedDataProvider blob assembler
+  report.py               render workspace/report.md from state
+  state.py                file-backed state (replaces Redis)
 jazzer/                   downloaded standalone Jazzer JAR (by setup.sh)
 docker/
   Dockerfile.runner       self-contained JDK + Jazzer + project image
