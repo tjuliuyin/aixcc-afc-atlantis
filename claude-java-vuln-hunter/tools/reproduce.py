@@ -40,7 +40,8 @@ def build_classpath() -> str:
     if DEPS_DIR.exists():
         for jar in sorted(DEPS_DIR.glob("*.jar")):
             parts.append(str(jar))
-    return ":".join(parts)
+    # os.pathsep is ':' on Unix and ';' on Windows — required for native Windows.
+    return os.pathsep.join(parts)
 
 
 def jazzer_cmd(target_class: str, blob: Path):

@@ -31,13 +31,27 @@ DEPS = BUILD / "deps"
 JAZZER = ROOT / "jazzer" / "jazzer_standalone.jar"
 
 
+def _resolve(prog: str) -> str:
+    """Resolve a command name to its actual executable.
+    On Windows `mvn` is `mvn.cmd`, `gradle` is `gradle.bat`, etc., and
+    subprocess with shell=False does NOT consult PATHEXT — so we resolve via
+    shutil.which() which DOES consult PATHEXT. Returns the input unchanged
+    if no resolution is found (subprocess will surface the real error).
+    """
+    found = shutil.which(prog)
+    return found or prog
+
+
 def run(cmd, cwd=None, check=True):
-    print(f"[build] $ {' '.join(map(str, cmd))}", flush=True)
-    r = subprocess.run(list(map(str, cmd)), cwd=cwd, capture_output=True, text=True)
+    cmd = list(map(str, cmd))
+    if cmd:
+        cmd[0] = _resolve(cmd[0])
+    print(f"[build] $ {' '.join(cmd)}", flush=True)
+    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
     if r.returncode != 0 and check:
         print(r.stdout[-2000:], file=sys.stderr)
         print(r.stderr[-2000:], file=sys.stderr)
-        raise SystemExit(f"[build] command failed: {' '.join(map(str, cmd))}")
+        raise SystemExit(f"[build] command failed: {' '.join(cmd)}")
     return r
 
 
