@@ -105,20 +105,32 @@ three confirmed with real Jazzer sanitizer findings:
 
 ### On Windows
 
+The project supports three Windows execution modes. See **[`WINDOWS.md`](./WINDOWS.md)**
+for the full guide, troubleshooting, and what was fixed for Windows. Quick
+versions:
+
+**A. Native PowerShell** (no WSL needed):
 ```powershell
-# install WSL2 + Ubuntu (one time)
+cd C:\path\to\claude-java-vuln-hunter
+pwsh -ExecutionPolicy Bypass -File .\setup.ps1
+pwsh -ExecutionPolicy Bypass -File .\run_demo.ps1   # 3/3 PoVs verified
+claude
+> /campaign
+```
+
+**B. WSL2 Ubuntu** (recommended for Linux parity):
+```powershell
 wsl --install -d Ubuntu-22.04
 wsl sudo apt install -y openjdk-21-jdk python3 python3-pip
-
-# clone/copy this project somewhere accessible from both Windows and WSL
 cd C:\path\to\claude-java-vuln-hunter
-
-# from PowerShell or WSL:
 wsl bash setup.sh
 wsl bash run_demo.sh
-$Env:REPRODUCE_BACKEND="wsl"  # tell reproduce.py to bridge through WSL
+$Env:REPRODUCE_BACKEND="wsl"     # let reproduce.py bridge to WSL
 claude
 ```
+
+**C. Git Bash**: the `*.sh` scripts run as-is; set `MSYS_NO_PATHCONV=1` if
+you hit path-translation issues.
 
 ### On Linux / macOS-with-Docker
 

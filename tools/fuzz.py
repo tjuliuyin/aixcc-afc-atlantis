@@ -43,7 +43,8 @@ def classpath() -> str:
     parts = [str(JAZZER_JAR), str(CLASSES_DIR)]
     if DEPS_DIR.exists():
         parts += [str(j) for j in sorted(DEPS_DIR.glob("*.jar"))]
-    return ":".join(parts)
+    # os.pathsep is ':' on Unix and ';' on Windows — required for native Windows.
+    return os.pathsep.join(parts)
 
 
 def run_tool(script: str, *args) -> dict:

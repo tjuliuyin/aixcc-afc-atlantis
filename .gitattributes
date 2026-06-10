@@ -1,0 +1,16 @@
+# Bash scripts must keep LF on every platform (CRLF will break them in WSL/Git Bash)
+*.sh         text eol=lf
+# PowerShell prefers CRLF on Windows but tolerates LF; pin LF for consistency
+*.ps1        text eol=lf
+# Python tools — LF everywhere
+*.py         text eol=lf
+# Markdown/text/JSON — let git decide locally
+*.md         text
+*.json       text
+*.txt        text
+# Binary blobs (PoVs, seeds, jars) — never touch
+*.bin        binary
+*.jar        binary
+*.class      binary
+*.tar.gz     binary
+*.gz         binary
